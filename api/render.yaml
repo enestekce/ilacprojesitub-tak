@@ -2,7 +2,7 @@ services:
   - type: web
     name: ilac-rehberi-api
     runtime: node
-    plan: starter
+    plan: free
     rootDir: api
     buildCommand: npm install && npx playwright install chromium --with-deps --only-shell
     startCommand: npm start
@@ -13,9 +13,5 @@ services:
       - key: ALLOWED_ORIGINS
         sync: false
       - key: DATA_DIR
-        value: /var/data
-    disk:
-      name: titck-catalog
-      mountPath: /var/data
-      sizeGB: 1
+        value: /tmp/ilac-rehberi
 
