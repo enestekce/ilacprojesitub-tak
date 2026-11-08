@@ -8,12 +8,12 @@ Node.js 22.14+ gerekir. `api` klasöründe `npm install`, ardından `npx playwri
 
 ## Render'a dağıtım
 
-1. Proje dosyalarını GitHub deposunun köküne gönderin.
-2. Render'da **New → Blueprint** seçip bu deponun kökünü bağlayın; `api/render.yaml` servis kökünü `api/` olarak tanımlar.
-3. `ALLOWED_ORIGINS` değişkenine tam Pages adresinizi yazın (ör. `https://kullanici.github.io` veya proje yolu içermeyen origin `https://kullanici.github.io`).
-4. API'nin HTTPS URL'sini `config.js` içindeki `ILAC_API_BASE` değerine yazıp frontend'i GitHub Pages'te yayınlayın. Bu API bağlantısı, TİTCK PDF'lerinin GitHub Pages tarayıcı güvenlik sınırlarını aşmadan sunucu tarafında okunması için gereklidir.
+1. Render'da bir hesap açıp GitHub hesabını bağlayın.
+2. **New → Blueprint** seçin ve `enestekce/ilacprojesitub-tak` deposunu bağlayın. `api/render.yaml` ücretsiz web servisi tanımlar.
+3. Blueprint kurulurken `ALLOWED_ORIGINS` için `https://enestekce.github.io` girin.
+4. Dağıtım tamamlanınca Render'ın verdiği HTTPS URL'sini bana gönderin; `config.js` içindeki `ILAC_API_BASE` değerini ayarlayıp Pages'i yeniden yayınlayabilirim.
 
-Veri diski `DATA_DIR` altında saklanır. Ücretsiz, uykuya geçen servisler ilk sorguda gecikebilir ve kalıcı disk sunmayabilir; Render'ın o anki plan koşullarını, ücretini ve disk desteğini kontrol edin. Render hesabı veya repo bağlantısı burada yok; dış hizmete dağıtım yapılmadı.
+Render'ın ücretsiz web hizmeti 15 dakika istek almazsa uykuya geçer; sonraki açılış yaklaşık bir dakika sürebilir. Ücretsiz hizmetin disk alanı kalıcı değildir, bu yüzden uyandıktan sonra TİTCK kataloğu yeniden indirilir. Bu ayar prototip ve sunum içindir; kesintisiz/hasta bakımında kullanılacak bir sağlık hizmeti düzeyinde değildir. [Render ücretsiz plan kısıtları](https://render.com/docs/free).
 
 ## Uç noktalar
 
