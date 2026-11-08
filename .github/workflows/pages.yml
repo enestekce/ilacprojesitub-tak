@@ -1,0 +1,61 @@
+name: Build and publish medicine guide
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+      - name: Install catalog importer dependencies
+        run: npm install --no-audit --no-fund
+        working-directory: api
+      - name: Install headless Chromium for official leaflet index
+        run: npx playwright install chromium --with-deps --only-shell
+        working-directory: api
+      - name: Prepare site shell
+        run: |
+          mkdir -p site/data
+          cp index.html config.js manifest.webmanifest icon.svg sw.js site/
+        shell: bash
+      - name: Download TİTCK medicines and KÜB/KT indexes and build searchable catalog
+        run: node api/server.js --export-static
+        env:
+          STATIC_CATALOG_PATH: ${{ github.workspace }}/site/data/catalog.json
+          DATA_DIR: ${{ runner.temp }}/ilac-rehberi-import
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
