@@ -350,10 +350,22 @@ if (process.argv.includes('--download-only')) {
   await refreshData();
 } else if (process.argv.includes('--export-static')) {
   await refreshData();
-  await refreshOfficialIndex();
+  let officialLeafletWarning = null;
+  try {
+    await refreshOfficialIndex();
+  } catch (error) {
+    // The TİTCK workbook is the source of the registered-product catalogue. Its
+    // separate leaflet page may be temporarily unavailable or change its markup;
+    // still publish the verified register and clearly mark that document matching
+    // is unavailable for this build instead of taking the entire site offline.
+    officialLeafletWarning = error.message;
+    leafletIndex = { sourceUrl: 'https://titck.gov.tr/kubkt', fetchedAt: null, documents: [] };
+    indexOfficialDocuments(leafletIndex);
+    console.warn(`Official KÜB/KT index unavailable; publishing the TİTCK register without document matches: ${error.message}`);
+  }
   const outputPath = path.resolve(process.env.STATIC_CATALOG_PATH || path.join(root, '..', 'data', 'catalog.json'));
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  const payload = { metadata, officialLeafletSource: leafletIndex.sourceUrl, officialLeafletFetchedAt: leafletIndex.fetchedAt, products: records.map(productPayload) };
+  const payload = { metadata, officialLeafletSource: leafletIndex.sourceUrl, officialLeafletFetchedAt: leafletIndex.fetchedAt, officialLeafletWarning, products: records.map(productPayload) };
   const temp = `${outputPath}.${crypto.randomUUID()}.tmp`;
   await fs.writeFile(temp, JSON.stringify(payload));
   await fs.rename(temp, outputPath);
