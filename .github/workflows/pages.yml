@@ -29,9 +29,6 @@ jobs:
       - name: Install catalog importer dependencies
         run: npm install --no-audit --no-fund
         working-directory: api
-      - name: Install headless Chromium for official leaflet index
-        run: npx playwright install chromium --with-deps --only-shell
-        working-directory: api
       - name: Prepare site shell
         run: |
           mkdir -p site/data

@@ -4,7 +4,7 @@ Statik GitHub Pages ön yüzü tek başına TİTCK listesini indiremez veya suna
 
 ## Yerelde çalıştırma
 
-Node.js 22.14+ gerekir. `api` klasöründe `npm install`, ardından `npx playwright install chromium --with-deps --only-shell` çalıştırıp `npm start` deyin. İlk açılışta güncel ruhsat listesi ve TİTCK KÜB/KT indeksini indirir. Ürün bulunduğunda resmi PDF'leri istek üzerine indirip ilgili bölümleri çıkarır.
+Node.js 22.14+ gerekir. `api` klasöründe `npm install` ve `npm start` çalıştırın. İlk açılışta güncel ruhsat listesi ve TİTCK KÜB/KT indeksini indirir. Ürün bulunduğunda resmî PDF'leri istek üzerine indirip ilgili bölümleri çıkarır.
 
 ## Render'a dağıtım
 
