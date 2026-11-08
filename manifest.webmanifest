@@ -1,0 +1,13 @@
+{
+  "name": "İlaç Rehberi · Smart-OCR Vision",
+  "short_name": "İlaç Rehberi",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff7fa",
+  "theme_color": "#d33c7c",
+  "lang": "tr",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
+
