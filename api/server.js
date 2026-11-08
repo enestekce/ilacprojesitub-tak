@@ -48,9 +48,26 @@ function extractListLink(html, pageUrl) {
 
 async function downloadWorkbook() {
   await fs.mkdir(dataDir, { recursive: true });
-  const page = await axios.get(sourcePage, { timeout: 30000, maxContentLength: 12 * 1024 * 1024, headers: { 'User-Agent': 'IlacRehberi/1.0 (TITCK public-list importer)' } });
+  const getWithRetry = async (url, options, label) => {
+    let lastError;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        return await axios.get(url, options);
+      } catch (error) {
+        lastError = error;
+        const status = error.response?.status;
+        const transient = !status || status === 408 || status === 425 || status === 429 || status >= 500;
+        if (!transient || attempt === 4) break;
+        const waitMs = Math.min(15000, 1000 * 2 ** (attempt - 1));
+        console.warn(`${label} isteği geçici olarak başarısız (deneme ${attempt}/4, HTTP ${status || 'ağ hatası'}); ${waitMs} ms sonra yeniden denenecek.`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+      }
+    }
+    throw lastError;
+  };
+  const page = await getWithRetry(sourcePage, { timeout: 30000, maxContentLength: 12 * 1024 * 1024, headers: { 'User-Agent': 'IlacRehberi/1.0 (TITCK public-list importer)' } }, 'TİTCK kaynak sayfası');
   const source = extractListLink(page.data, sourcePage);
-  const response = await axios.get(source.url, { responseType: 'arraybuffer', timeout: 120000, maxContentLength: 100 * 1024 * 1024, headers: { 'User-Agent': 'IlacRehberi/1.0', Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } });
+  const response = await getWithRetry(source.url, { responseType: 'arraybuffer', timeout: 120000, maxContentLength: 100 * 1024 * 1024, headers: { 'User-Agent': 'IlacRehberi/1.0', Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } }, 'TİTCK ilaç listesi');
   const buffer = Buffer.from(response.data);
   if (!buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) throw new Error('İndirilen dosya XLSX arşivi olarak doğrulanamadı.');
   const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
