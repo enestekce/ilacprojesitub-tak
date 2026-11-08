@@ -1,0 +1,16 @@
+{
+  "name": "ilac-rehberi-api",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.14.0" },
+  "scripts": { "start": "node server.js", "download": "node server.js --download-only" },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "express": "^4.21.2",
+    "pdfjs-dist": "6.5.438",
+    "playwright": "1.65.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}
+
