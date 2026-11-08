@@ -1,85 +1,104 @@
-import { chromium } from 'playwright';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
-const sourceUrl = 'https://titck.gov.tr/kubkt';
+const sourceUrl = 'https://www.titck.gov.tr/kubkt';
+const dataUrl = 'https://www.titck.gov.tr/getkubktviewdatatable';
+const columns = ['name', 'element', 'firmName', 'confirmationDateKub', 'confirmationDateKt', 'documentPathKub', 'documentPathKt'];
 
-/** Read only the official TİTCK KÜB/KT index. Never guess a PDF URL. */
-export async function scrapeOfficialLeaflets() {
-  const browser = await chromium.launch({ headless: true });
+function csrfToken(html) {
+  const match = html.match(/_token\s*:\s*['"]([^'"]+)['"]/i);
+  if (!match) throw new Error('TİTCK KÜB/KT sayfasında güvenlik anahtarı bulunamadı.');
+  return match[1];
+}
+
+function pdfUrl(markup) {
+  const $ = cheerio.load(markup || '');
+  const href = $('a[href]').map((_, anchor) => $(anchor).attr('href')).get().find(value => /\.pdf(?:$|[?#])/i.test(value || ''));
+  if (!href) return null;
   try {
-    const page = await browser.newPage({ locale: 'tr-TR' });
-    await page.goto(sourceUrl, { waitUntil: 'domcontentloaded', timeout: 90000 });
-    await page.waitForFunction(() => [...document.querySelectorAll('table')].some(table => {
-      const header = table.querySelector('thead')?.innerText || '';
-      return /İlaç Adı/i.test(header) && /Etkin Madde Adı/i.test(header) && /Küb Dokümanı/i.test(header);
-    }), { timeout: 90000 });
+    const url = new URL(href.replace(/\\\//g, '/'), sourceUrl);
+    return url.protocol === 'https:' && ['titck.gov.tr', 'www.titck.gov.tr'].includes(url.hostname) ? url.href : null;
+  } catch { return null; }
+}
 
-    const result = await page.evaluate(async () => {
-      const table = [...document.querySelectorAll('table')].find(candidate => {
-        const header = candidate.querySelector('thead')?.innerText || '';
-        return /İlaç Adı/i.test(header) && /Etkin Madde Adı/i.test(header) && /Küb Dokümanı/i.test(header);
-      });
-      if (!table) throw new Error('TİTCK KÜB/KT tablosu bulunamadı.');
-      const headers = [...table.querySelectorAll('thead th')].map(cell => cell.innerText.trim());
-      const parseRows = () => [...table.querySelectorAll('tbody tr')].map(row => [...row.cells].map(cell => ({
-        text: (cell.innerText || '').trim(),
-        urls: [...cell.querySelectorAll('a[href]')].map(anchor => anchor.href)
-      })));
-      const jq = window.jQuery;
-      const isDataTable = jq?.fn?.dataTable?.isDataTable(table);
-      if (!isDataTable) return { headers, rows: parseRows(), total: parseRows().length };
+function requestBody(token, start, length) {
+  const body = new URLSearchParams({
+    draw: String(Math.floor(start / length) + 1), start: String(start), length: String(length),
+    '_token': token, 'search[value]': '', 'search[regex]': 'false',
+    'order[0][column]': '0', 'order[0][dir]': 'asc'
+  });
+  columns.forEach((name, index) => {
+    body.set(`columns[${index}][data]`, name);
+    body.set(`columns[${index}][name]`, '');
+    body.set(`columns[${index}][searchable]`, 'true');
+    body.set(`columns[${index}][orderable]`, 'true');
+    body.set(`columns[${index}][search][value]`, '');
+    body.set(`columns[${index}][search][regex]`, 'false');
+  });
+  return body.toString();
+}
 
-      const api = jq(table).DataTable();
-      const settings = api.settings()[0];
-      if (!settings.oFeatures.bServerSide) {
-        const rows = api.rows().nodes().toArray().map(row => [...row.cells].map(cell => ({
-          text: (cell.innerText || '').trim(),
-          urls: [...cell.querySelectorAll('a[href]')].map(anchor => anchor.href)
-        })));
-        return { headers, rows, total: api.page.info().recordsTotal };
-      }
-
-      const desiredPageLength = 100;
-      let done = new Promise(resolve => api.one('draw.dt', resolve));
-      api.page.len(desiredPageLength).draw();
-      await done;
-      const info = api.page.info();
-      const rows = [];
-      for (let pageNumber = 0; pageNumber < info.pages; pageNumber++) {
-        if (api.page.info().page !== pageNumber) {
-          done = new Promise(resolve => api.one('draw.dt', resolve));
-          api.page(pageNumber).draw('page');
-          await done;
+async function fetchPage(client, token, cookies, start, length) {
+  let lastError;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const response = await client.post(dataUrl, requestBody(token, start, length), {
+        timeout: 60000,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Referer': sourceUrl,
+          'Origin': 'https://www.titck.gov.tr',
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          ...(cookies ? { Cookie: cookies } : {})
         }
-        rows.push(...parseRows());
-      }
-      return { headers, rows, total: info.recordsTotal };
-    });
-
-    const indexOf = regex => result.headers.findIndex(value => regex.test(value));
-    const columns = {
-      name: indexOf(/İlaç Adı/i), ingredient: indexOf(/Etkin Madde Adı/i), firm: indexOf(/Firma Adı/i),
-      kubDate: indexOf(/Küb Onay Tarihi/i), ktDate: indexOf(/Kt Onay Tarihi/i),
-      kub: indexOf(/Küb Dokümanı/i), kt: indexOf(/Kt Dokümanı/i)
-    };
-    const items = result.rows.map(cells => {
-      const get = key => cells[columns[key]] || { text: '', urls: [] };
-      return {
-        name: get('name').text,
-        activeIngredient: get('ingredient').text,
-        firm: get('firm').text,
-        kubDate: get('kubDate').text,
-        ktDate: get('ktDate').text,
-        kubUrl: get('kub').urls[0] || null,
-        ktUrl: get('kt').urls[0] || null
-      };
-    }).filter(item => item.name && (item.kubUrl || item.ktUrl));
-
-    if (items.length < 100 || (result.total && items.length < Math.min(result.total, 100))) {
-      throw new Error(`TİTCK KÜB/KT listesi eksik geldi (${items.length}/${result.total || 'bilinmiyor'}). Eksik belge kataloğu kullanıma açılmadı.`);
+      });
+      if (!Array.isArray(response.data?.data)) throw new Error('TİTCK KÜB/KT tablosu beklenen kayıt biçimini döndürmedi.');
+      return response.data;
+    } catch (error) {
+      lastError = error;
+      const status = error.response?.status;
+      const transient = !status || status === 408 || status === 425 || status === 429 || status >= 500;
+      if (!transient || attempt === 4) break;
+      const wait = Math.min(12000, 1000 * 2 ** (attempt - 1));
+      console.warn(`TİTCK KÜB/KT isteği geçici olarak başarısız (deneme ${attempt}/4); ${wait} ms sonra yeniden denenecek.`);
+      await new Promise(resolve => setTimeout(resolve, wait));
     }
-    return { sourceUrl, fetchedAt: new Date().toISOString(), totalRows: result.total || items.length, documents: items };
-  } finally {
-    await browser.close();
   }
+  throw lastError;
+}
+
+/** Read the official TİTCK KÜB/KT index through its own DataTables endpoint. */
+export async function scrapeOfficialLeaflets() {
+  const client = axios.create({ headers: { 'User-Agent': 'Mozilla/5.0 (compatible; IlacRehberi/1.0; TİTCK public index reader)' } });
+  const page = await client.get(sourceUrl, { timeout: 60000, maxContentLength: 10 * 1024 * 1024 });
+  const token = csrfToken(page.data);
+  const cookies = (page.headers['set-cookie'] || []).map(value => value.split(';')[0]).filter(Boolean).join('; ');
+  const pageLength = 1000;
+  const first = await fetchPage(client, token, cookies, 0, pageLength);
+  const total = Number(first.recordsFiltered || first.recordsTotal || first.data.length);
+  if (!Number.isFinite(total) || total < 100) throw new Error(`TİTCK KÜB/KT listesi beklenenden kısa geldi (${total}).`);
+  const rows = [...first.data];
+  for (let start = pageLength; start < total; start += pageLength) {
+    const next = await fetchPage(client, token, cookies, start, pageLength);
+    rows.push(...next.data);
+    if (rows.length < start + Math.min(pageLength, total - start)) throw new Error(`TİTCK KÜB/KT sayfalaması eksik kaldı (${rows.length}/${total}).`);
+    if (start + pageLength < total) await new Promise(resolve => setTimeout(resolve, 180));
+  }
+
+  const documents = rows.map(row => ({
+    name: String(row.name || '').trim(),
+    activeIngredient: String(row.element || '').trim(),
+    firm: String(row.firmName || '').trim(),
+    kubDate: String(row.confirmationDateKub || '').trim(),
+    ktDate: String(row.confirmationDateKt || '').trim(),
+    kubUrl: pdfUrl(row.documentPathKub),
+    ktUrl: pdfUrl(row.documentPathKt)
+  })).filter(item => item.name && (item.kubUrl || item.ktUrl));
+
+  if (documents.length < 100 || documents.length < Math.min(total, 100)) {
+    throw new Error(`TİTCK KÜB/KT listesi eksik geldi (${documents.length}/${total}); eksik belge kataloğu kullanıma açılmadı.`);
+  }
+  return { sourceUrl, fetchedAt: new Date().toISOString(), totalRows: total, documents };
 }
 
