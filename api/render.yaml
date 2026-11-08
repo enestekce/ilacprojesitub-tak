@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ilac-rehberi-api
+    runtime: node
+    plan: starter
+    rootDir: api
+    buildCommand: npm install && npx playwright install chromium --with-deps --only-shell
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: titck-catalog
+      mountPath: /var/data
+      sizeGB: 1
+
