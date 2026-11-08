@@ -23,10 +23,10 @@ GitHub Pages statik dosyaları yayınlar; bu proje katalog üretimini Actions i�
 
 1. Bu `outputs` klasörünü bir GitHub reposunun köküne koyup `main` dalına gönderin.
 2. Depoda **Settings → Pages → Build and deployment → GitHub Actions** seçin.
-3. `main` dalına gönderince veya **Actions → Build and publish medicine guide → Run workflow** çalıştırınca iş TİTCK kaynağını alır, tam katalog dosyasını üretir ve Pages'e yayınlar. Haftalık iş de yeni kaynak listesini çekip yayını günceller.
-4. Yayınlanan sitede ilaç arama, kaynak kayıtlarını sayfalı listeleme ve resmî belge PDF bağlantıları statik katalogdan çalışır. Kullanım ve alerji bölümlerini uygulama içinde PDF'den açıp okumak için `api/README.md` ile Node API'yi HTTPS'e dağıtın ve `config.js` içindeki `ILAC_API_BASE` adresini ayarlayın.
+3. `main` dalına gönderince veya workflow'u Actions sekmesinden çalıştırınca iş TİTCK ruhsat XLSX'ini ve resmî KÜB/KT listesini alır, katalog üretir ve Pages'e yayınlar. Haftalık iş kaynak listesini yeniler.
+4. Yayındaki statik katalogda ruhsatlı ürün araması ve güvenli eşleşen resmî KÜB/KT PDF bağlantıları bulunur. “Ne için kullanılır?”, uyarılar ve belge metninin sesli okunması için aşağıdaki Node API'yi ayrıca HTTPS'e dağıtıp `config.js` içindeki `ILAC_API_BASE` değerini ayarlayın.
 
-Bu çalışma klasöründeki yerel önizleme, Pages derlemesi henüz çalışmadığı için yalnızca örnek listeyi gösterebilir. TİTCK'nın tam katalog ve KÜB/KT indeksi, repoya gönderilip GitHub Actions ilk başarılı derlemeyi bitirince yayınlanan sitede görünür. GitHub hesabında bu uygulama için bir depo bulunmadığından yeni depo açma/yayın işlemi bu klasörden yapılamadı.
+Mevcut GitHub Pages yayını: <https://enestekce.github.io/ilacprojesitub-tak/>. Son başarılı derlemede TİTCK ruhsat dosyasından 23.442 satır ve resmî KÜB/KT indeksinden 15.831 belge kaydı alındı. Ruhsat satırı eczane stokta bulunma veya SGK geri ödeme durumu anlamına gelmez.
 
 ## Bilgisayarda önizleme ve fotoğraf tarama
 
